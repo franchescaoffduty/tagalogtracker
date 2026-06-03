@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tagalog Study Tracker</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #fffcdd; }
+    button { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // ─── COLOR PALETTE (same as Japanese tracker) ────────────────
+    const C = {
+      mahogany: "#805841",
+      pearl:    "#dcf7f3",
+      daffodil: "#fffcdd",
+      gossamer: "#ffd8d8",
+      dreamy:   "#f5a2a2",
+      white:    "#ffffff",
+      text:     "#3a2a1a",
+      muted:    "#9a7a5a",
+      border:   "#e8d8d0",
+    };
+
+    // ─── TASK TYPE CONFIG ────────────────────────────────────────
+    function typeLabel(t) {
+      return { vocab:"Vocab", dialogue:"Dialogue", activity:"Activity", grammar:"Grammar", practice:"Practice", review:"Review" }[t] || t;
+    }
+    function typeBadgeColor(t) {
+      return { vocab:"#dbeafe", dialogue:C.gossamer, activity:"#fef3c7", grammar:"#ede9fe", practice:C.pearl, review:C.daffodil }[t] || C.white;
+    }
+    function typeBorderColor(t) {
+      return { vocab:"#93c5fd", dialogue:C.dreamy, activity:"#fcd34d", grammar:"#c4b5fd", practice:"#6ee7b7", review:"#d4c060" }[t] || C.border;
+    }
+
+    // ─── LESSON DATA ─────────────────────────────────────────────
+    const LESSONS = [
+      { num:1,  unit:1, uname:"About Self",      keyword:"Identity",    tasks:[
+        {type:"vocab",    label:"Vocabulary: Majors, Nationalities, Officials, Professions, Pronouns, Markers"},
+        {type:"dialogue", label:"Dialogue: Kumusta Ka? (How Are You?) + Comprehension"},
+        {type:"activity", label:"Activity 1: Interview (greetings)"},
+        {type:"activity", label:"Activity 2: Interview (greetings)"},
+        {type:"activity", label:"Activity 3: Fill in the Blanks"},
+        {type:"grammar",  label:"Grammar: Definitions + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Sino (Who) — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Ano (What) — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},
+        {type:"practice", label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},
+        {type:"practice", label:"Practice IV: Listening"},
+      ]},
+      { num:2,  unit:1, uname:"About Self",      keyword:"Greetings",   tasks:[
+        {type:"vocab",    label:"Vocabulary: Places, Countries, Verbs, Adjectives, Location Markers"},
+        {type:"dialogue", label:"Dialogue: Pagpapakilala (Introductions) + Comprehension"},
+        {type:"activity", label:"Activity 1: Interview"},
+        {type:"activity", label:"Activity 2: Interview"},
+        {type:"activity", label:"Activity 3: Information Gap Activity"},
+        {type:"grammar",  label:"Grammar: Definitions (Enclitics, Ba) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Taga Saan — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Nasaan — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar III: Saan — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},
+        {type:"practice", label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},
+        {type:"practice", label:"Practice IV: Listening"},
+      ]},
+      { num:3,  unit:1, uname:"About Self",      keyword:"Preferences", tasks:[
+        {type:"vocab",    label:"Vocabulary: Sports, Pseudo-Verbs, Adjectives, Ng Pronouns & Markers"},
+        {type:"dialogue", label:"Dialogue: Ano Ang Gusto Mo? (What Do You Want?) + Comprehension"},
+        {type:"activity", label:"Activity 1: Interview"},
+        {type:"activity", label:"Activity 2: Interview"},
+        {type:"activity", label:"Activity 3: Cultural Experience"},
+        {type:"grammar",  label:"Grammar: Definitions (Aspect, Pseudo-Verbs) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Pseudo-Verbs with Ng Markers — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar I cont.: Pseudo-Verbs with Ang Phrases — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},
+        {type:"practice", label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},
+        {type:"practice", label:"Practice IV: Listening"},
+      ]},
+      { num:4,  unit:2, uname:"Family",          keyword:"Family",      tasks:[
+        {type:"vocab",    label:"Vocabulary: Family Terms, Numbers, Relationships"},
+        {type:"dialogue", label:"Dialogue: Pagbisita sa Bahay ni Mark + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Possessive Noun Markers & Pronouns — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Numbers — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:5,  unit:2, uname:"Family",          keyword:"Description", tasks:[
+        {type:"vocab",    label:"Vocabulary: Descriptive Adjectives, Linkers"},
+        {type:"dialogue", label:"Reading Text: Ang Pamilya Ko (My Family) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Adjectives, Linkers, Reduplication) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Adjectives and Linkers — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: -Naka Modifier — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:6,  unit:2, uname:"Family",          keyword:"Conversation", tasks:[
+        {type:"vocab",    label:"Vocabulary: Family relationships, Dates"},
+        {type:"dialogue", label:"Reading Text: Ang Pamilya ni Josie + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Existential Particles) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: May, Mayroon — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar I cont.: Mayroon and Wala — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Prefix IKA- — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:7,  unit:3, uname:"Activities",      keyword:"Routine",     tasks:[
+        {type:"vocab",    label:"Vocabulary: Days, Mag-/Um-/Ma- Verbs, Adverbs of Time, Enclitics"},
+        {type:"dialogue", label:"Dialogue: Ang Buhay May-asawa (Married Life) + Comprehension"},
+        {type:"activity", label:"Activity 1: My Schedule"},{type:"activity",label:"Activity 2: Interview"},{type:"activity",label:"Activity 3: Mike's Schedule"},
+        {type:"grammar",  label:"Grammar: Definitions (Actor Focus, Transitive/Intransitive) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Mag- Verbs — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Telling Time (Formal) — Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:8,  unit:3, uname:"Activities",      keyword:"Hobbies",     tasks:[
+        {type:"vocab",    label:"Vocabulary: Dance, Hobbies, Ditransitive Verbs, Sa Markers"},
+        {type:"dialogue", label:"Dialogue: Magsayaw Tayo! (Let's Dance!) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Ditransitive, Indirect Object, 1st Person Plural) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Sa Markers and Sa Pronouns — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Usage of Sa Markers — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:9,  unit:3, uname:"Activities",      keyword:"Shopping",    tasks:[
+        {type:"vocab",    label:"Vocabulary: Shopping, Prices, Numbers (hundreds/thousands)"},
+        {type:"dialogue", label:"Dialogue: Magkano Ito? (How Much Is This?) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Aspect, Actor-Focus Verbs, Infix/Prefix) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: -Um- Verbs — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Numbers — Daan at Libo — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:10, unit:4, uname:"Home",            keyword:"Location",    tasks:[
+        {type:"vocab",    label:"Vocabulary: House rooms, Prepositions, Spatial Location Words"},
+        {type:"dialogue", label:"Dialogue: Ito ang Bahay Ko (This Is My House) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Preposition, Prepositional Phrase) + Examining Form"},
+        {type:"grammar",  label:"Grammar A: Nasa and Spatial Location Words — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar B: Sa and Spatial Location Words — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:11, unit:4, uname:"Home",            keyword:"Places",      tasks:[
+        {type:"vocab",    label:"Vocabulary: Places, Adjectives"},
+        {type:"dialogue", label:"Reading Text: Ang mga Paborito Kong Lugar + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Comparative, Superlative, Intensifier) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Positive, Comparatives, and Superlatives — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Intensifier — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:12, unit:4, uname:"Home",            keyword:"Hometown",    tasks:[
+        {type:"vocab",    label:"Vocabulary: Geography, Town/City Terms"},
+        {type:"dialogue", label:"Reading Text: Imbitasyon sa Aking Bahay + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Root Word, Ma- Adjective) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: -Um- Verbs Completed/Incompleted — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Le g-Uma Verb — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:13, unit:5, uname:"Health",          keyword:"Illness",     tasks:[
+        {type:"vocab",    label:"Vocabulary: Illnesses, Body Parts, Helping Verbs"},
+        {type:"dialogue", label:"Reading Text: Isang Paalala (A Reminder) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Helping Verbs, Main Verbs) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Helping Verbs and Negative Markers — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:14, unit:5, uname:"Health",          keyword:"Doctor",      tasks:[
+        {type:"vocab",    label:"Vocabulary: Doctor's office, Medical terms, Telling Time (informal)"},
+        {type:"dialogue", label:"Dialogue: Pagbisita sa Doktor (Visiting the Doctor) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Magka- Verbs, Experiencer) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Magka- and Magkaroon — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Telling Time (Informal) — Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:15, unit:5, uname:"Health",          keyword:"Remedies",    tasks:[
+        {type:"vocab",    label:"Vocabulary: Remedies, Medicine, Experiencer-Focus Verbs"},
+        {type:"dialogue", label:"Dialogue: Pagbisita sa May Sakit (Visiting the Sick) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Gusto, Ayaw, Kailangang — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Experiencer-Focus Ma- Verbs — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:16, unit:6, uname:"Food",            keyword:"Market",      tasks:[
+        {type:"vocab",    label:"Vocabulary: Market food items, Reduplication, Moderative Adjectives"},
+        {type:"dialogue", label:"Dialogue: Isang Araw sa Palengke (One Day at the Market) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Full/Partial Reduplication) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Moderative Adjective Forms & Exclamatory Sentences — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:17, unit:6, uname:"Food",            keyword:"Restaurant",  tasks:[
+        {type:"vocab",    label:"Vocabulary: Restaurant, Ordering food, Enclitics, Paki-"},
+        {type:"dialogue", label:"Dialogue: Pagkain sa Isang Restawran (Eating at a Restaurant) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Object-Focus Verbs, -In-, I-, Paki-) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Different Ways to Say Please — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:18, unit:6, uname:"Food",            keyword:"Cooking",     tasks:[
+        {type:"vocab",    label:"Vocabulary: Cooking terms, Ingredients, Object-Focus Verbs"},
+        {type:"dialogue", label:"Reading Text: Binagoongan Pork with Shrimp Paste + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Object-Focus Verbs, Glottal Stop) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Looking Back / Forward — Notes"},
+        {type:"grammar",  label:"Grammar II: Object-Focus Verbs (-In-/I-/-An) — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar III: Interrogative Pronoun Gaano — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:19, unit:7, uname:"Travel",          keyword:"Vacation",    tasks:[
+        {type:"vocab",    label:"Vocabulary: Travel, Vacation, -In- and I- Verbal Affixes"},
+        {type:"dialogue", label:"Reading Text: Ang Bakasyon Ko sa Boracay + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (-In-/I- Verbal Affixes) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Verbal Equivalence: Actor Focus vs Object Focus — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Completed Aspect (-In-/I-) — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:20, unit:7, uname:"Travel",          keyword:"Festivals",   tasks:[
+        {type:"vocab",    label:"Vocabulary: Festivals, Filipino cultural events"},
+        {type:"dialogue", label:"Reading Text: Mga Pista (Festivals) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Incompleted Aspect (-In-/I-) — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:21, unit:7, uname:"Travel",          keyword:"Geography",   tasks:[
+        {type:"vocab",    label:"Vocabulary: Philippine regions, Travel phrases"},
+        {type:"dialogue", label:"Dialogue: Paglalakbay sa Pilipinas (Travel to the Philippines) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Contemplated Aspect (-In-/I-), Sino + Actor/Object Focus — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:22, unit:8, uname:"Popular Culture", keyword:"Legends",     tasks:[
+        {type:"vocab",    label:"Vocabulary: Legend terms, Directional-Focus Verbs, -An/-Han"},
+        {type:"dialogue", label:"Reading Text: Ang Alamat ni Mariang Sinukuan + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Indirect Object, Directional-Focus Verbs, -An/-Han) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: -An/-Han Directional-Focus Verbs — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Basic Sentence Structure with Transitive Verbs — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:23, unit:8, uname:"Popular Culture", keyword:"Media",       tasks:[
+        {type:"vocab",    label:"Vocabulary: Cinema, TV, Causative Verbs, Time Clauses"},
+        {type:"dialogue", label:"Reading Text: Minsa'y Isang Gamu-gamo (Once a Moth) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Causative Verbs, Subordinate/Time Clause, Pagka-) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Pagka- (Time-Clause Verbal Prefix) — Presentation & Notes"},
+        {type:"grammar",  label:"Grammar II: Magpa- Causative Verb (Indirect-Actor Focus) — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+      { num:24, unit:8, uname:"Popular Culture", keyword:"Arts",        tasks:[
+        {type:"vocab",    label:"Vocabulary: Music, Dance, Abilitative Verbs, Maka-/Makapag-"},
+        {type:"dialogue", label:"Dialogue: Turuan Mo Naman Akong Kumanta (Teach Me How to Sing) + Comprehension"},
+        {type:"activity", label:"Activity 1"},{type:"activity",label:"Activity 2"},{type:"activity",label:"Activity 3"},
+        {type:"grammar",  label:"Grammar: Definitions (Abilitative Verbs) + Examining Form"},
+        {type:"grammar",  label:"Grammar I: Maka- and Makapag- Verbs — Presentation & Notes"},
+        {type:"practice", label:"Practice I: Speaking"},{type:"practice",label:"Practice II: Reading"},
+        {type:"practice", label:"Practice III: Writing"},{type:"practice",label:"Practice IV: Listening"},
+      ]},
+    ];
+
+    // ─── BUILD FLAT SCHEDULE ─────────────────────────────────────
+    // Each lesson = 3 consecutive weekdays:
+    //   Day A: vocab + dialogue + activities  (type: 'vocab')
+    //   Day B: all grammar                    (type: 'grammar')
+    //   Day C: all practice                   (type: 'practice')
+    // Plus every day gets a vocab review task.
+    function buildSchedule(startDate) {
+      const entries = []; // { absDay, lesson, dayType, tasks[] }
+      let absDay = 0;
+      LESSONS.forEach(l => {
+        const vocabTasks    = l.tasks.filter(t => ["vocab","dialogue","activity"].includes(t.type));
+        const grammarTasks  = l.tasks.filter(t => t.type === "grammar");
+        const practiceTasks = l.tasks.filter(t => t.type === "practice");
+        entries.push({ absDay: absDay++, lesson: l, dayType: "vocab",    tasks: vocabTasks });
+        if (grammarTasks.length)  entries.push({ absDay: absDay++, lesson: l, dayType: "grammar",  tasks: grammarTasks });
+        if (practiceTasks.length) entries.push({ absDay: absDay++, lesson: l, dayType: "practice", tasks: practiceTasks });
+      });
+      return entries;
+    }
+
+    function absDayToDate(startDate, absDay) {
+      const d = new Date(startDate); d.setHours(0,0,0,0);
+      // skip to first weekday
+      while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+      let count = 0;
+      while (count < absDay) {
+        d.setDate(d.getDate() + 1);
+        if (d.getDay() !== 0 && d.getDay() !== 6) count++;
+      }
+      return d;
+    }
+
+    function isSameDay(a, b) {
+      return a.getFullYear() === b.getFullYear() &&
+             a.getMonth()    === b.getMonth()    &&
+             a.getDate()     === b.getDate();
+    }
+    function formatDate(d) {
+      return d.toLocaleDateString("en-US", { weekday:"short", month:"short", day:"numeric" });
+    }
+    function dateKey(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    }
+    function getWeekDays(date) {
+      const d = new Date(date); d.setHours(0,0,0,0);
+      const dow = d.getDay();
+      const mon = new Date(d); mon.setDate(d.getDate() - (dow === 0 ? 6 : dow - 1));
+      return Array.from({length:5}, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate()+i); return x; });
+    }
+
+    // ─── STORAGE ─────────────────────────────────────────────────
+    const STORAGE_KEY = "tlStudyTracker_v1";
+    function loadData() {
+      try { const v = localStorage.getItem(STORAGE_KEY); return v ? JSON.parse(v) : {}; }
+      catch { return {}; }
+    }
+    function saveData(data) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) {}
+    }
+
+    // ─── APP ─────────────────────────────────────────────────────
+    function App() {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const DAY_NAMES = ["Su","Mo","Tu","We","Th","Fr","Sa"];
+
+      const [loaded,       setLoaded]       = useState(false);
+      const [startDate,    setStartDate]    = useState(today);
+      const [completions,  setCompletions]  = useState({});
+      const [selectedDate, setSelectedDate] = useState(today);
+      const [view,         setView]         = useState("day");
+      const [editModal,    setEditModal]    = useState(null); // {entryIdx, taskIdx} or null
+      const [editLabel,    setEditLabel]    = useState("");
+      const [editType,     setEditType]     = useState("vocab");
+      const [customTasks,  setCustomTasks]  = useState({}); // key -> {label, type}
+      const [startInput,   setStartInput]   = useState("");
+
+      useEffect(() => {
+        const d = loadData();
+        const sd = d.startDate ? new Date(d.startDate) : today;
+        sd.setHours(0,0,0,0);
+        setStartDate(sd);
+        setStartInput(d.startDate || dateKey(today));
+        setCompletions(d.completions || {});
+        setCustomTasks(d.customTasks || {});
+        // Jump to first incomplete day
+        const sched = buildSchedule(sd);
+        for (const e of sched) {
+          const dt = absDayToDate(sd, e.absDay);
+          if (dt >= today) { setSelectedDate(dt); break; }
+        }
+        setLoaded(true);
+      }, []);
+
+      useEffect(() => {
+        if (!loaded) return;
+        saveData({ startDate: dateKey(startDate), completions, customTasks });
+      }, [completions, customTasks, startDate, loaded]);
+
+      const schedule = buildSchedule(startDate);
+
+      // Map date -> schedule entry
+      const dateToEntry = {};
+      schedule.forEach(e => {
+        const dt = absDayToDate(startDate, e.absDay);
+        dateToEntry[dateKey(dt)] = e;
+      });
+
+      function getEntryForDate(date) { return dateToEntry[dateKey(date)] || null; }
+
+      function taskId(entryAbsDay, taskIdx, isReview) {
+        return isReview ? `VR-${entryAbsDay}` : `E${entryAbsDay}-T${taskIdx}`;
+      }
+      function isComplete(date, id) { return !!((completions[dateKey(date)] || {})[id]); }
+      function toggleTask(date, id) {
+        const k = dateKey(date);
+        setCompletions(prev => { const day = {...(prev[k]||{})}; day[id] = !day[id]; return {...prev, [k]:day}; });
+      }
+      function dayProgress(date) {
+        const entry = getEntryForDate(date);
+        if (!entry) return null;
+        const vrId = taskId(entry.absDay, -1, true);
+        const allIds = [vrId, ...entry.tasks.map((_, i) => taskId(entry.absDay, i, false))];
+        const done = allIds.filter(id => isComplete(date, id)).length;
+        return { done, total: allIds.length };
+      }
+
+      function customKey(entryAbsDay, taskIdx) { return `E${entryAbsDay}-T${taskIdx}`; }
+      function getLabel(entry, taskIdx) {
+        const k = customKey(entry.absDay, taskIdx);
+        return customTasks[k]?.label || entry.tasks[taskIdx].label;
+      }
+      function getType(entry, taskIdx) {
+        const k = customKey(entry.absDay, taskIdx);
+        return customTasks[k]?.type || entry.tasks[taskIdx].type;
+      }
+
+      function applyStart() {
+        if (!startInput) return;
+        const d = new Date(startInput + "T00:00:00");
+        while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+        setStartDate(d);
+        setSelectedDate(d);
+      }
+
+      function catchUp() {
+        // Count completed lesson-days and back-calculate start
+        let doneAbsDays = new Set();
+        schedule.forEach(e => {
+          const dt = absDayToDate(startDate, e.absDay);
+          const vrId = taskId(e.absDay, -1, true);
+          const allIds = [vrId, ...e.tasks.map((_,i) => taskId(e.absDay, i, false))];
+          if (allIds.every(id => isComplete(dt, id))) doneAbsDays.add(e.absDay);
+        });
+        const doneDays = doneAbsDays.size;
+        let newStart = new Date(today);
+        while (newStart.getDay() === 0 || newStart.getDay() === 6) newStart.setDate(newStart.getDate() - 1);
+        let back = doneDays;
+        while (back > 0) {
+          newStart.setDate(newStart.getDate() - 1);
+          if (newStart.getDay() !== 0 && newStart.getDay() !== 6) back--;
+        }
+        setStartDate(newStart);
+        setStartInput(dateKey(newStart));
+        setSelectedDate(today);
+      }
+
+      // Overall progress
+      const totalTasks = schedule.reduce((sum, e) => sum + e.tasks.length + 1, 0); // +1 for VR
+      let doneTasks = 0;
+      schedule.forEach(e => {
+        const dt = absDayToDate(startDate, e.absDay);
+        const vrId = taskId(e.absDay, -1, true);
+        if (isComplete(dt, vrId)) doneTasks++;
+        e.tasks.forEach((_, i) => { if (isComplete(dt, taskId(e.absDay, i, false))) doneTasks++; });
+      });
+      const lastEntry = schedule[schedule.length - 1];
+      const endDate = lastEntry ? absDayToDate(startDate, lastEntry.absDay) : today;
+
+      function moveWeek(dir) {
+        const d = new Date(selectedDate); d.setDate(d.getDate() + dir * 7); setSelectedDate(d);
+      }
+
+      const weekDays      = getWeekDays(selectedDate);
+      const selEntry      = getEntryForDate(selectedDate);
+      const selDow        = selectedDate.getDay();
+      const isWeekend     = selDow === 0 || selDow === 6;
+
+      // ── Styles ──────────────────────────────────────────────────
+      const S = {
+        app:        { fontFamily:"Georgia,serif", background:`linear-gradient(160deg,${C.daffodil} 0%,#fff 55%,${C.pearl} 100%)`, minHeight:"100vh", color:C.text },
+        header:     { background:C.mahogany, color:C.daffodil, padding:"16px 20px 12px", display:"flex", alignItems:"center", justifyContent:"space-between", boxShadow:"0 2px 10px rgba(100,60,30,.25)" },
+        title:      { fontSize:"20px", fontWeight:"bold", letterSpacing:".3px" },
+        subtitle:   { fontSize:"12px", color:C.dreamy, marginTop:"2px", fontStyle:"italic" },
+        navRow:     { display:"flex", justifyContent:"center", alignItems:"center", gap:"14px", padding:"10px 0 2px", background:"rgba(255,255,255,.5)" },
+        navBtn:     { padding:"4px 14px", borderRadius:"20px", border:`1px solid ${C.border}`, background:C.white, color:C.mahogany, fontSize:"12px", fontFamily:"Georgia,serif" },
+        weekRow:    { display:"flex", gap:"4px", padding:"8px 12px 10px", background:"rgba(255,255,255,.55)", borderBottom:`1px solid ${C.border}`, overflowX:"auto" },
+        body:       { padding:"14px 16px" },
+        dateHeader: { display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"12px" },
+        dateTitle:  { fontSize:"17px", fontWeight:"bold", color:C.mahogany },
+        meta:       { display:"flex", gap:"6px", flexWrap:"wrap", marginTop:"4px", alignItems:"center" },
+        note:       { fontSize:"12px", color:C.muted, fontStyle:"italic", padding:"0 12px 10px 41px", lineHeight:1.55 },
+        empty:      { textAlign:"center", padding:"36px 16px", color:C.muted, fontStyle:"italic", fontSize:"14px", lineHeight:1.8 },
+        dots:       { display:"flex", justifyContent:"center", gap:"2px", marginTop:"3px", minHeight:"7px" },
+        wTask:      { display:"flex", gap:"8px", alignItems:"center", padding:"6px 14px", borderBottom:`1px solid ${C.border}`, cursor:"pointer" },
+        settingsBar:{ background:"rgba(255,255,255,.7)", borderBottom:`1px solid ${C.border}`, padding:"8px 16px", display:"flex", gap:"10px", alignItems:"center", flexWrap:"wrap" },
+        progBar:    { height:"5px", background:C.border, borderRadius:"4px", flex:1, minWidth:"80px", overflow:"hidden" },
+        progFill:   { height:"100%", background:C.mahogany, borderRadius:"4px", transition:"width .3s" },
+      };
+
+      const toggleBtn = (active) => ({
+        padding:"4px 14px", borderRadius:"20px",
+        border:`1px solid ${active ? C.daffodil : "rgba(255,255,255,.35)"}`,
+        background: active ? C.daffodil : "transparent",
+        color: active ? C.mahogany : C.daffodil,
+        fontSize:"12px", fontFamily:"Georgia,serif", fontWeight: active ? "bold" : "normal"
+      });
+      const chip = (sel, isToday, hasEntry) => ({
+        flex:1, minWidth:"50px", padding:"7px 3px 5px", borderRadius:"10px", textAlign:"center", cursor:"pointer",
+        border: sel ? `2px solid ${C.mahogany}` : `1px solid ${C.border}`,
+        background: sel ? C.gossamer : isToday ? C.daffodil : C.white,
+        opacity: hasEntry ? 1 : 0.45,
+      });
+      const checkbox = (done) => ({
+        width:"19px", height:"19px", borderRadius:"5px",
+        border:`2px solid ${done ? C.mahogany : C.border}`,
+        background: done ? C.mahogany : "white",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        flexShrink:0, marginTop:"1px", color:"white", fontSize:"12px"
+      });
+      const pill = (col) => ({
+        padding:"2px 8px", borderRadius:"10px", background:col,
+        fontSize:"10px", color:C.mahogany, border:`1px solid ${C.border}`
+      });
+      const taskCard = (done) => ({
+        borderRadius:"10px", border:`1px solid ${C.border}`, marginBottom:"9px",
+        background: done ? "#f6f4f2" : C.white, opacity: done ? .65 : 1, transition:"opacity .2s"
+      });
+      const taskRow = (type) => ({
+        display:"flex", alignItems:"flex-start", gap:"10px", padding:"11px 12px 8px",
+        borderLeft:`4px solid ${typeBorderColor(type)}`, cursor:"pointer", borderRadius:"0 8px 8px 0"
+      });
+      const taskLabel = (done) => ({
+        fontSize:"13px", fontWeight:"bold",
+        color: done ? "#999" : C.text, textDecoration: done ? "line-through" : "none", lineHeight:1.4
+      });
+      const wCard = (isToday) => ({
+        borderRadius:"10px", border:`1px solid ${isToday ? C.mahogany : C.border}`,
+        background:C.white, marginBottom:"10px", overflow:"hidden"
+      });
+      const wHead = (isToday) => ({
+        padding:"8px 14px", background: isToday ? C.mahogany : C.daffodil,
+        color: isToday ? C.daffodil : C.mahogany,
+        display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer"
+      });
+
+      // ── Edit Modal ────────────────────────────────────────────
+      function openEdit(entry, taskIdx) {
+        setEditModal({ entryAbsDay: entry.absDay, taskIdx });
+        setEditLabel(getLabel(entry, taskIdx));
+        setEditType(getType(entry, taskIdx));
+      }
+      function saveEdit() {
+        if (!editModal) return;
+        const k = customKey(editModal.entryAbsDay, editModal.taskIdx);
+        setCustomTasks(prev => ({ ...prev, [k]: { label: editLabel, type: editType } }));
+        setEditModal(null);
+      }
+
+      // ── Render a single lesson task card ──────────────────────
+      function TaskCard({ entry, taskIdx, date }) {
+        const id   = taskId(entry.absDay, taskIdx, false);
+        const done = isComplete(date, id);
+        const lbl  = getLabel(entry, taskIdx);
+        const typ  = getType(entry, taskIdx);
+        return (
+          <div style={taskCard(done)}>
+            <div style={taskRow(typ)} onClick={() => toggleTask(date, id)}>
+              <div style={checkbox(done)}>{done ? "✓" : ""}</div>
+              <div style={{flex:1}}>
+                <div style={taskLabel(done)}>{lbl}</div>
+                <div style={S.meta}>
+                  <span style={pill(typeBadgeColor(typ))}>{typeLabel(typ)}</span>
+                  <span style={pill(C.daffodil)}>L{entry.lesson.num} · U{entry.lesson.unit}: {entry.lesson.uname}</span>
+                </div>
+              </div>
+              <button onClick={e => { e.stopPropagation(); openEdit(entry, taskIdx); }}
+                style={{background:"none",border:"none",fontSize:"14px",color:C.muted,padding:"0 2px",lineHeight:1}}>✎</button>
+            </div>
+          </div>
+        );
+      }
+
+      // ── Vocab review card ─────────────────────────────────────
+      function VocabReviewCard({ entry, date }) {
+        const id   = taskId(entry.absDay, -1, true);
+        const done = isComplete(date, id);
+        const lbl  = entry.dayType === "vocab"
+          ? "📚 Study & memorize vocab before proceeding (RemNote)"
+          : "📚 Daily vocab review (RemNote)";
+        return (
+          <div style={{...taskCard(done), marginBottom:"12px"}}>
+            <div style={taskRow("review")} onClick={() => toggleTask(date, id)}>
+              <div style={checkbox(done)}>{done ? "✓" : ""}</div>
+              <div style={{flex:1}}>
+                <div style={taskLabel(done)}>{lbl}</div>
+                <div style={S.meta}>
+                  <span style={pill(C.daffodil)}>Review</span>
+                  <span style={{fontSize:"10px",color:C.muted,fontStyle:"italic"}}>Every day</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // ── Day type label ────────────────────────────────────────
+      function dayTypeLabel(entry) {
+        if (!entry) return "";
+        const labels = { vocab:"Day A · Vocab + Dialogue + Activities", grammar:"Day B · Grammar", practice:"Day C · Practice" };
+        return labels[entry.dayType] || "";
+      }
+
+      return (
+        <div style={S.app}>
+
+          {/* Header */}
+          <div style={S.header}>
+            <div>
+              <div style={S.title}>Tagalog Study Tracker</div>
+              <div style={S.subtitle}>Elementary Tagalog · 24 Lessons · 8 Units · 1 hr/day weekdays</div>
+            </div>
+            <div style={{display:"flex",gap:"6px"}}>
+              <button style={toggleBtn(view==="day")}  onClick={() => setView("day")}>Day</button>
+              <button style={toggleBtn(view==="week")} onClick={() => setView("week")}>Week</button>
+            </div>
+          </div>
+
+          {/* Settings / progress bar */}
+          <div style={S.settingsBar}>
+            <span style={{fontSize:"11px",color:C.muted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>Start:</span>
+            <input type="date" value={startInput} onChange={e => setStartInput(e.target.value)}
+              style={{fontSize:"11px",padding:"3px 6px",border:`1px solid ${C.border}`,borderRadius:"6px",fontFamily:"Georgia,serif"}} />
+            <button onClick={applyStart} style={{...S.navBtn,padding:"3px 10px",fontSize:"11px"}}>Set</button>
+            <button onClick={catchUp}   style={{...S.navBtn,padding:"3px 10px",fontSize:"11px"}}>Reschedule from today</button>
+            <div style={S.progBar}><div style={{...S.progFill, width:`${Math.round(doneTasks/totalTasks*100)}%`}} /></div>
+            <span style={{fontSize:"11px",color:C.muted,whiteSpace:"nowrap"}}>{doneTasks}/{totalTasks}</span>
+            <span style={{fontSize:"10px",color:C.muted,fontStyle:"italic",whiteSpace:"nowrap"}}>
+              ends ~{endDate.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}
+            </span>
+          </div>
+
+          {/* Week nav */}
+          <div style={S.navRow}>
+            <button style={S.navBtn} onClick={() => moveWeek(-1)}>← Prev</button>
+            <span style={{fontSize:"12px",color:C.muted,fontStyle:"italic"}}>Week of {formatDate(weekDays[0])}</span>
+            <button style={S.navBtn} onClick={() => moveWeek(1)}>Next →</button>
+          </div>
+
+          {/* Day chips */}
+          <div style={S.weekRow}>
+            {weekDays.map(day => {
+              const sel      = isSameDay(day, selectedDate);
+              const isToday  = isSameDay(day, today);
+              const entry    = getEntryForDate(day);
+              const prog     = dayProgress(day);
+              return (
+                <div key={day.toISOString()} style={chip(sel, isToday, !!entry)}
+                  onClick={() => { setSelectedDate(day); setView("day"); }}>
+                  <div style={{fontSize:"9px",textTransform:"uppercase",letterSpacing:".6px",
+                    color:isToday?C.mahogany:C.muted, fontWeight:isToday?"bold":"normal"}}>
+                    {DAY_NAMES[day.getDay()]}
+                  </div>
+                  <div style={{fontSize:"16px",fontWeight:sel?"bold":"normal",
+                    color:sel?C.mahogany:C.text,lineHeight:1.2}}>
+                    {day.getDate()}
+                  </div>
+                  <div style={S.dots}>
+                    {prog ? Array.from({length:prog.total},(_,i)=>(
+                      <div key={i} style={{width:"5px",height:"5px",borderRadius:"50%",
+                        background: i < prog.done ? C.mahogany : C.border}} />
+                    )) : <div style={{width:"5px",height:"5px"}} />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Body */}
+          <div style={S.body}>
+            {view === "day" ? (
+              <>
+                <div style={S.dateHeader}>
+                  <div>
+                    <div style={S.dateTitle}>{formatDate(selectedDate)}</div>
+                    {selEntry && <div style={{fontSize:"11px",color:C.muted,fontStyle:"italic",marginTop:"2px"}}>
+                      {dayTypeLabel(selEntry)} · L{selEntry.lesson.num}: {selEntry.lesson.keyword} · U{selEntry.lesson.unit}: {selEntry.lesson.uname}
+                    </div>}
+                  </div>
+                  {selEntry && (() => {
+                    const prog = dayProgress(selectedDate);
+                    return prog ? (
+                      <span style={{fontSize:"12px",color:C.muted}}>
+                        {prog.done}/{prog.total}{prog.done === prog.total && prog.total > 0 ? " 🌸" : ""}
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+
+                {isWeekend ? (
+                  <div style={S.empty}>🌸 Weekend — rest up!<br/><span style={{fontSize:"13px"}}>No tasks scheduled.</span></div>
+                ) : !selEntry ? (
+                  <div style={S.empty}>No tasks scheduled today.<br/><span style={{fontSize:"12px",color:C.muted}}>You may be ahead of schedule — enjoy the buffer!</span></div>
+                ) : (
+                  <>
+                    <VocabReviewCard entry={selEntry} date={selectedDate} />
+                    {selEntry.tasks.map((_, i) => (
+                      <TaskCard key={i} entry={selEntry} taskIdx={i} date={selectedDate} />
+                    ))}
+                  </>
+                )}
+              </>
+            ) : (
+              weekDays.map(day => {
+                const isToday = isSameDay(day, today);
+                const entry   = getEntryForDate(day);
+                const prog    = dayProgress(day);
+                return (
+                  <div key={day.toISOString()} style={wCard(isToday)}>
+                    <div style={wHead(isToday)} onClick={() => { setSelectedDate(day); setView("day"); }}>
+                      <div>
+                        <div style={{fontSize:"14px",fontWeight:"bold"}}>
+                          {formatDate(day)}{isToday ? " · Today" : ""}
+                        </div>
+                        {entry && <div style={{fontSize:"11px",opacity:.75,marginTop:"1px"}}>
+                          {dayTypeLabel(entry)} · L{entry.lesson.num}: {entry.lesson.keyword}
+                        </div>}
+                      </div>
+                      <div style={{fontSize:"12px",fontStyle:"italic"}}>
+                        {prog ? `${prog.done}/${prog.total} done` : "—"}
+                      </div>
+                    </div>
+                    {entry ? (
+                      <>
+                        {/* Vocab review row */}
+                        {(() => {
+                          const id = taskId(entry.absDay, -1, true);
+                          const done = isComplete(day, id);
+                          return (
+                            <div style={S.wTask} onClick={() => toggleTask(day, id)}>
+                              <div style={checkbox(done)}>{done ? "✓" : ""}</div>
+                              <div style={{fontSize:"13px",color:done?"#aaa":C.text,textDecoration:done?"line-through":"none",flex:1}}>
+                                {entry.dayType === "vocab" ? "📚 Study & memorize vocab (RemNote)" : "📚 Daily vocab review (RemNote)"}
+                              </div>
+                              <span style={pill(C.daffodil)}>Review</span>
+                            </div>
+                          );
+                        })()}
+                        {entry.tasks.map((_, i) => {
+                          const id   = taskId(entry.absDay, i, false);
+                          const done = isComplete(day, id);
+                          const lbl  = getLabel(entry, i);
+                          const typ  = getType(entry, i);
+                          return (
+                            <div key={i} style={S.wTask} onClick={() => toggleTask(day, id)}>
+                              <div style={checkbox(done)}>{done ? "✓" : ""}</div>
+                              <div style={{fontSize:"13px",color:done?"#aaa":C.text,textDecoration:done?"line-through":"none",flex:1}}>{lbl}</div>
+                              <span style={pill(typeBadgeColor(typ))}>{typeLabel(typ)}</span>
+                            </div>
+                          );
+                        })}
+                      </>
+                    ) : (
+                      <div style={{padding:"8px 14px",fontSize:"12px",color:C.muted,fontStyle:"italic"}}>No tasks scheduled</div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Edit Modal */}
+          {editModal && (
+            <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,.4)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center"}}
+              onClick={() => setEditModal(null)}>
+              <div style={{background:C.white,borderRadius:"12px",padding:"20px",width:"min(400px,92vw)",boxShadow:"0 8px 32px rgba(0,0,0,.18)",fontFamily:"Georgia,serif"}}
+                onClick={e => e.stopPropagation()}>
+                <div style={{fontSize:"15px",fontWeight:"bold",color:C.mahogany,marginBottom:"14px"}}>Edit task</div>
+                <div style={{fontSize:"12px",color:C.muted,marginBottom:"4px"}}>Label</div>
+                <input value={editLabel} onChange={e => setEditLabel(e.target.value)}
+                  style={{width:"100%",fontSize:"13px",padding:"7px 9px",border:`1px solid ${C.border}`,borderRadius:"7px",marginBottom:"12px",fontFamily:"Georgia,serif"}} />
+                <div style={{fontSize:"12px",color:C.muted,marginBottom:"4px"}}>Type</div>
+                <select value={editType} onChange={e => setEditType(e.target.value)}
+                  style={{width:"100%",fontSize:"13px",padding:"7px 9px",border:`1px solid ${C.border}`,borderRadius:"7px",marginBottom:"16px",fontFamily:"Georgia,serif"}}>
+                  {["vocab","dialogue","activity","grammar","practice","review"].map(t => (
+                    <option key={t} value={t}>{typeLabel(t)}</option>
+                  ))}
+                </select>
+                <div style={{display:"flex",gap:"8px",justifyContent:"flex-end"}}>
+                  <button onClick={() => setEditModal(null)}
+                    style={{...S.navBtn,padding:"6px 14px"}}>Cancel</button>
+                  <button onClick={saveEdit}
+                    style={{...S.navBtn,background:C.mahogany,color:C.daffodil,border:"none",padding:"6px 14px"}}>Save</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
